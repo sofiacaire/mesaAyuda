@@ -1,38 +1,29 @@
 const formE1 = document.querySelector('.form');
 
 /*---
-    Intercepta el submit del formulario
-    */
+	Intercepta el submit del formulario
+	*/
 
 formE1.addEventListener('submit', (event) => {
 	event.preventDefault();
 	const formData = new FormData(formE1);
 	const data = Object.fromEntries(formData);
-	console.log('Application Server: Revisa el valor del form:');
-	console.log(data);
+	const contacto = (data.contacto || '').trim();
+	console.log('Application Server: se recibieron credenciales de acceso');
 
 	/*---
-        Realiza validaciones en los datos del formulario antes de procesar
-        */
+		Realiza validaciones en los datos del formulario antes de procesar
+		*/
 
-	if (data.id == '' || data.password == '') {
-		console.log('debe indicar usuario');
+	if (contacto == '' || data.password == '') {
+		console.log('debe indicar email y contraseña');
 		document.getElementById('resultado1').style.color = 'RED';
 		document.getElementById('resultado1').style.textAlign = 'center';
 		document.getElementById('resultado1').textContent =
-			'Debe informar usuario y password para  completar el acceso';
+			'Debe informar email y contraseña para completar el acceso';
 		return;
 	}
 
-	if (data.id == 'pec') {   /*--Fix hecho por  Germán Lombardi IS1-2025 */
-		console.log('pec no es bienvenido en éste sistema');
-		const m = '<li>El usuario <pec> no es bienvenido en éste sistema</li>';
-		document.getElementById('resultado2').style.color = 'RED';
-		document.getElementById('resultado2').style.textAlign = 'center';
-		document.getElementById('resultado2').textContent =
-			'El usuario <pec> no es bienvenido en éste sistema';
-		return;
-	}
 	if (data.termscondition != 'on') {
 		console.log('no aceptó los T&C no se puede loggear');
 		document.getElementById('resultado2').style.textAlign = 'center';
@@ -43,8 +34,8 @@ formE1.addEventListener('submit', (event) => {
 	}
 
 	/*---
-        Genera objeto HTML a ser actualizado en el tag identificado como "app"
-        */
+		Genera objeto HTML a ser actualizado en el tag identificado como "app"
+		*/
 
 	const HTMLResponse = document.querySelector('#app');
 	const ul = document.createElement('ul');
@@ -61,19 +52,19 @@ formE1.addEventListener('submit', (event) => {
 		listarTicket: 'http://localhost:8080/api/listarTicket',
 	};
 
-/*-----
-    Define el URI para realizar el acceso en base al acceso a un servidor local
-*/
-    const MODE='LOCAL'; /*-- Instrucción a cambiar opciones LOCAL, TYPICODE o AWS --*/
+	/*-----
+		Define el URI para realizar el acceso en base al acceso a un servidor local
+	*/
+	const MODE = 'LOCAL'; /*-- Instrucción a cambiar opciones LOCAL, TYPICODE o AWS --*/
 
 	if (MODE == 'LOCAL') {
-	/*-----
-        Crea estructuras para acceder a data del cliente
-        */
-	    const login = {
-	        id: data.id,
-		    password: data.password
-		}	
+		/*-----
+			Crea estructuras para acceder a data del cliente
+			*/
+		const login = {
+			contacto,
+			password: data.password
+		}
 
 		const options = {
 			method: 'POST',
@@ -81,16 +72,13 @@ formE1.addEventListener('submit', (event) => {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify(login),
-	};
+		};
 
 
 
-	 	console.log('API REST:' + RESTAPI.loginCliente);
-	    console.log(login);
-	    console.log('login(' + JSON.stringify(login) + ')');
-	    console.log('options ' + JSON.stringify(options));
-    	var API = RESTAPI.loginCliente;
-	    var APIoptions = options;
+		console.log('API REST:' + RESTAPI.loginCliente);
+		var API = RESTAPI.loginCliente;
+		var APIoptions = options;
 
 	};
 
@@ -109,7 +97,7 @@ formE1.addEventListener('submit', (event) => {
 	if (MODE == 'TYPICODE') {
 		console.log('Acceso usando Typicode como application server');
 		API =
-			'https://my-json-server.typicode.com/lu7did/MesaAyuda/posts/' + data.id;
+			'https://my-json-server.typicode.com/lu7did/MesaAyuda/posts/' + encodeURIComponent(contacto);
 		APIoptions = { method: 'GET' };
 	}
 
@@ -122,13 +110,13 @@ formE1.addEventListener('submit', (event) => {
 	/*----------------------------------------------------------------------*/
 	if (MODE == 'AWS') {
 		console.log('Acceso usando AWS lambda como application server');
-		API='https://fmtj0jrpp9.execute-api.us-east-1.amazonaws.com/default/loginUserGET?ID=' + data.id + '&PASSWORD=' + data.password;
-    	APIoptions = { method: 'GET' };
+		API = 'https://fmtj0jrpp9.execute-api.us-east-1.amazonaws.com/default/loginUserGET?CONTACTO=' + encodeURIComponent(contacto) + '&PASSWORD=' + encodeURIComponent(data.password);
+		APIoptions = { method: 'GET' };
 	}
 	/*-----
-    Realiza el acceso al API Rest utilizando gestión de sincronización mediante promesas
+	Realiza el acceso al API Rest utilizando gestión de sincronización mediante promesas
 	utiliza URL y options definidos en los pasos anteriores
-    */
+	*/
 
 	fetch(`${API}`, APIoptions)
 		.then((res) => {
@@ -138,40 +126,27 @@ formE1.addEventListener('submit', (event) => {
 			console.log(
 				'Datos en respuesta del application server=' + JSON.stringify(users)
 			);
-			console.log('users.response=' + users.password);
 			if (users.response == 'OK') {
 				//<==Habilitar esto para dejar que el API REST verifique sin exponer la password
 				console.log('La password es correcta');
 				console.log(
 					'nombre(' +
-						users.nombre +
-						') fecha_ultimo_ingreso(' +
-						users.fecha_ultimo_ingreso +
-						')' +
-						'mode(' + MODE + ')'
+					users.nombre +
+					') fecha_ultimo_ingreso(' +
+					users.fecha_ultimo_ingreso +
+					')' +
+					'mode(' + MODE + ')'
 				);
 				console.log(
 					'id=' +
-						users.id +
-						' nombre=' +
-						users.nombre +
-						' ultimo=' +
-						users.fecha_ultimo_ingreso
+					users.id +
+					' nombre=' +
+					users.nombre +
+					' ultimo=' +
+					users.fecha_ultimo_ingreso
 				);
 				console.log(
 					'changing to ' +
-						systemURL.listarTicket +
-						'?id=' +
-						users.id +
-						'&contacto=' +
-						users.contacto +
-						'&nombre=' +
-						users.nombre +
-						'&fecha_ultimo_ingreso=' +
-						users.fecha_ultimo_ingreso +
-						'&mode=' + MODE
-				);
-				window.location.href =
 					systemURL.listarTicket +
 					'?id=' +
 					users.id +
@@ -181,12 +156,28 @@ formE1.addEventListener('submit', (event) => {
 					users.nombre +
 					'&fecha_ultimo_ingreso=' +
 					users.fecha_ultimo_ingreso +
-					'&mode=' + MODE;
+					'&mode=' + MODE
+				);
+				const params = new URLSearchParams({
+					id: users.id,
+					contacto: users.contacto,
+					nombre: users.nombre,
+					fecha_ultimo_ingreso: users.fecha_ultimo_ingreso,
+					mode: MODE,
+				});
+				window.location.href = systemURL.listarTicket + '?' + params.toString();
 			} else {
 				console.log('La password no es correcta');
 				document.getElementById('resultado1').style.color = 'RED'; /*--Fix hecho por  Germán Lombardi IS1-2025 */
 				document.getElementById('resultado1').textContent =
-					'Error de login, intente nuevamente';                  /*--Fix hecho por  Germán Lombardi IS1-2025 */
+					users.message || 'Error de login, intente nuevamente'; /*--Fix hecho por  Germán Lombardi IS1-2025 */
 			}
+		})
+		.catch((error) => {
+			console.error('Error al iniciar sesión:', error);
+			document.getElementById('resultado1').style.color = 'RED';
+			document.getElementById('resultado1').style.textAlign = 'center';
+			document.getElementById('resultado1').textContent =
+				'No se pudo conectar con el servidor. Intente nuevamente.';
 		});
 });
