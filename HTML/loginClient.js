@@ -126,8 +126,7 @@ formE1.addEventListener('submit', (event) => {
 			console.log(
 				'Datos en respuesta del application server=' + JSON.stringify(users)
 			);
-			if (users.response == 'OK') {
-				//<==Habilitar esto para dejar que el API REST verifique sin exponer la password
+			if (users.response === 'OK') {
 				console.log('La password es correcta');
 				console.log(
 					'nombre(' +
@@ -166,11 +165,16 @@ formE1.addEventListener('submit', (event) => {
 					mode: MODE,
 				});
 				window.location.href = systemURL.listarTicket + '?' + params.toString();
-			} else {
-				console.log('La password no es correcta');
+			} else if (users.response === 'invalido') {
+				console.log('Email o contraseña inválidos');
 				document.getElementById('resultado1').style.color = 'RED'; /*--Fix hecho por  Germán Lombardi IS1-2025 */
 				document.getElementById('resultado1').textContent =
-					users.message || 'Error de login, intente nuevamente'; /*--Fix hecho por  Germán Lombardi IS1-2025 */
+					'Email o contraseña incorrectos';
+			} else {
+				console.error('Error en respuesta de login:', users.message || users.response);
+				document.getElementById('resultado1').style.color = 'RED';
+				document.getElementById('resultado1').textContent =
+					'No se pudo validar el acceso. Intente nuevamente.';
 			}
 		})
 		.catch((error) => {

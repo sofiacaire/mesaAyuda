@@ -107,18 +107,18 @@ app.post('/api/loginCliente', (req, res) => {
     console.log("loginCliente: autenticación por contacto");
 
     if (!password) {
-        res.status(400).send({ response: "ERROR", message: "Password no informada" });
+        res.status(401).send({ response: "invalido" });
         return;
     }
     if (!contacto) {
-        res.status(400).send({ response: "ERROR", message: "Contacto no informado" });
+        res.status(401).send({ response: "invalido" });
         return;
     }
 
     scanDb(contacto)
         .then(clientes => {
             if (clientes.length === 0) {
-                res.status(400).send({ response: "ERROR", message: "Cliente invalido" });
+                res.status(401).send({ response: "invalido" });
                 return;
             }
 
@@ -126,11 +126,11 @@ app.post('/api/loginCliente', (req, res) => {
             const paswd = jsonParser('password', cliente);
             const activo = jsonParser('activo', cliente);
             if (password !== paswd) {
-                res.status(400).send({ response: "ERROR", message: "usuario incorrecto" });
+                res.status(401).send({ response: "invalido" });
                 return;
             }
             if (activo !== true) {
-                res.status(400).send({ response: "ERROR", message: "Cliente no activo" });
+                res.status(401).send({ response: "invalido" });
                 return;
             }
 
