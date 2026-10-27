@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrarse - Mesa de Ayuda</title>
+    <style>
+        label {
+            font-size: 18px;
+        }
+
+        form {
+            width: 500px;
+            max-width: calc(100% - 24px);
+            border: 1px solid black;
+            background-color: #d8f7cf;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        .txt {
+            display: inline-block;
+            width: 80%;
+            outline: none;
+            margin: 7px;
+            padding: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <center><img src="HelpDeskGirl.png" alt="Nuestra imagen corporativa" style="width:200px;height:150px;"></center>
+    <center>
+        <h1>Sistema de Mesa de Ayuda</h1>
+        <h2>Registrarse</h2>
+    </center>
+
+    <center>
+        <form id="registroForm">
+            <p><label for="contacto">Correo electrónico</label><br>
+                <input class="txt" id="contacto" name="contacto" type="email"
+                    placeholder="Correo electrónico del cliente" autocomplete="email" required>
+            </p>
+            <p><label for="password">Contraseña</label><br>
+                <input class="txt" id="password" name="password" type="password" placeholder="Elegí una contraseña"
+                    autocomplete="new-password" required>
+            </p>
+            <p><label><input id="termscondition" name="termscondition" type="checkbox" required>
+                    Acepto los términos y condiciones del ingreso al sistema (S.E.u.O)</label></p>
+            <p id="registroResultado" role="status" aria-live="polite"></p>
+            <button type="submit">Registrarme</button>
+            <p><a href="loginClient.html">Volver a iniciar sesión</a></p>
+        </form>
+    </center>
+
+    <script src="registroCliente.js" type="module"></script>
+</body>
+
+</html>

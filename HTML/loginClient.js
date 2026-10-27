@@ -1,4 +1,96 @@
 const formE1 = document.querySelector('.form');
+const contactInput = document.getElementById('contacto');
+const registerLink = document.getElementById('registerLink');
+const registroStatus = document.getElementById('registroStatus');
+const resetPasswordLink = document.getElementById('resetPasswordLink');
+const clientApi = 'http://localhost:8080/api';
+
+let availabilityRequest = 0;
+let availabilityTimer;
+
+if (new URLSearchParams(window.location.search).get('registrado') === '1') {
+	document.getElementById('resultado1').textContent =
+		'Registro exitoso. Ya puede iniciar sesión.';
+}
+if (new URLSearchParams(window.location.search).get('passwordActualizada') === '1') {
+	document.getElementById('resultado1').textContent =
+		'Contraseña actualizada. Ya puede iniciar sesión.';
+}
+
+resetPasswordLink.addEventListener('click', (event) => {
+	event.preventDefault();
+	const params = new URLSearchParams();
+	if (contactInput.value.trim()) {
+		params.set('contacto', contactInput.value.trim());
+	}
+	const query = params.toString();
+	window.location.href = `resetPassword.html${query ? `?${query}` : ''}`;
+});
+
+function setRegistrationAvailability(available, message = '') {
+	registerLink.setAttribute('aria-disabled', String(!available));
+	registerLink.tabIndex = available ? 0 : -1;
+	registerLink.classList.toggle('disabled', !available);
+	registroStatus.textContent = message;
+
+	if (available) {
+		registerLink.href = `registroCliente.html?contacto=${encodeURIComponent(contactInput.value.trim())}`;
+	} else {
+		registerLink.href = 'registroCliente.html';
+	}
+}
+
+registerLink.addEventListener('click', (event) => {
+	if (registerLink.getAttribute('aria-disabled') === 'true') {
+		event.preventDefault();
+	}
+});
+
+contactInput.addEventListener('input', () => {
+	window.clearTimeout(availabilityTimer);
+	const requestId = ++availabilityRequest;
+	const contacto = contactInput.value.trim();
+
+	setRegistrationAvailability(false);
+	if (!contactInput.validity.valid || !contacto) {
+		return;
+	}
+
+	registroStatus.textContent = ' Verificando correo...';
+	availabilityTimer = window.setTimeout(() => {
+		fetch(`${clientApi}/checkCliente`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ contacto }),
+		})
+			.then((response) => {
+				if (!response.ok) {
+					throw new Error(`Error verificando correo (${response.status})`);
+				}
+				return response.json();
+			})
+			.then((result) => {
+				if (requestId !== availabilityRequest || contacto !== contactInput.value.trim()) {
+					return;
+				}
+				if (result.response !== 'OK' || typeof result.exists !== 'boolean') {
+					throw new Error('Respuesta inválida al verificar el correo');
+				}
+				if (result.exists) {
+					setRegistrationAvailability(false, ' Este correo ya está registrado.');
+				} else {
+					setRegistrationAvailability(true, ' Correo disponible.');
+				}
+			})
+			.catch((error) => {
+				if (requestId !== availabilityRequest) {
+					return;
+				}
+				console.error('Error al verificar correo:', error);
+				setRegistrationAvailability(false, ' No se pudo verificar el correo.');
+			});
+	}, 300);
+});
 
 /*---
 	Intercepta el submit del formulario
@@ -48,7 +140,7 @@ formE1.addEventListener('submit', (event) => {
 	};
 
 	const RESTAPI = {
-		loginCliente: 'http://localhost:8080/api/loginCliente',
+		loginCliente: `${clientApi}/loginCliente`,
 		listarTicket: 'http://localhost:8080/api/listarTicket',
 	};
 

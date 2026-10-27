@@ -39,6 +39,16 @@
             outline: none;
             margin: 0;
         }
+
+        #registerLink[aria-disabled="true"] {
+            color: gray;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+
+        #registroStatus {
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -83,14 +93,17 @@
                 </tr>
                 <tr>
                     <td>
-                        <center><a href="http://127.0.0.1:5500/loginClient.html">¿Olvidaste tu contraseña?</a></center>
+                        <center><a id="resetPasswordLink" href="resetPassword.html">¿Olvidaste tu contraseña?</a>
+                        </center>
                     </td>
 
                 </tr>
                 <tr>
                     <td>
-                        <center><span>¿No tienes una cuenta? </span><a
-                                href="http://127.0.0.1:5500/loginClient.html">Registrate</a></center>
+                        <center><span>¿No tienes una cuenta? </span><a id="registerLink" href="registroCliente.html"
+                                aria-disabled="true" tabindex="-1">Registrate</a>
+                            <span id="registroStatus" role="status"></span>
+                        </center>
                     </td>
                 </tr>
                 <tr>

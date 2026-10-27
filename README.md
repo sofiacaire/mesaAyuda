@@ -18,12 +18,13 @@ Implementación Full Stack Node.JS local usando DB en AWS.
 ```
 
 	/addCliente	Agrega un nuevo cliente
+	/checkCliente	Verifica si un correo electrónico ya está registrado
+	/registrarCliente	Registra un cliente nuevo con correo, password y aceptación de términos
 	/getCliente	Recupera el registro de un cliente
 	/setCliente	Actualiza banderas baja, activo, registrado
 	/updateCliente	Actualiza datos del cliente
 	/listCliente	Lista clientes
-	/resetCliente	Hace reset de password y actualiza fecha
+	/resetCliente	Actualiza la password y su fecha de cambio (acepta id o correo electrónico)
 	/loginCliente	Revisa login y actualiza fecha
 	/deleteCliente	Borra fisicamente un cliente
 ``
-
