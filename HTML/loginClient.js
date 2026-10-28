@@ -10,11 +10,11 @@ let availabilityTimer;
 
 if (new URLSearchParams(window.location.search).get('registrado') === '1') {
 	document.getElementById('resultado1').textContent =
-		'Registro exitoso. Ya puede iniciar sesión.';
+		'El usuario se registró con éxito. Ya puede iniciar sesión.';
 }
 if (new URLSearchParams(window.location.search).get('passwordActualizada') === '1') {
 	document.getElementById('resultado1').textContent =
-		'Contraseña actualizada. Ya puede iniciar sesión.';
+		'La contraseña se cambió con éxito. Ya puede iniciar sesión.';
 }
 
 resetPasswordLink.addEventListener('click', (event) => {
