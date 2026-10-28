@@ -1,6 +1,8 @@
 const registroForm = document.getElementById('registroForm');
+const nombreInput = document.getElementById('nombre');
 const contactoInput = document.getElementById('contacto');
 const passwordInput = document.getElementById('password');
+const confirmPasswordInput = document.getElementById('confirmPassword');
 const termsInput = document.getElementById('termscondition');
 const resultado = document.getElementById('registroResultado');
 const apiUrl = 'http://localhost:8080/api/registrarCliente';
@@ -25,13 +27,21 @@ registroForm.addEventListener('submit', async (event) => {
 		return;
 	}
 
+	if (passwordInput.value !== confirmPasswordInput.value) {
+		resultado.textContent = 'Las contraseñas no coinciden.';
+		confirmPasswordInput.focus();
+		return;
+	}
+
 	try {
 		const response = await fetch(apiUrl, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
+				nombre: nombreInput.value.trim(),
 				contacto: contactoInput.value.trim(),
 				password: passwordInput.value,
+				confirmPassword: confirmPasswordInput.value,
 				termscondition: termsInput.checked,
 			}),
 		});

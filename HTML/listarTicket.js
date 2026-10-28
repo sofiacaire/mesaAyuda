@@ -28,9 +28,10 @@ console.log("contacto:" + query.contacto);
 console.log("ultima_fecha:" + query.fecha_ultimo_ingreso);
 console.log("mode:" + query.mode);
 
-document.getElementById("clientEmail").textContent = query.contacto || query.id || "";
+document.getElementById("clientId").textContent = query.id || "";
 document.getElementById("clientContact").textContent = query.contacto || "";
-document.getElementById("clientName").textContent = query.nombre || "No informado";
+document.getElementById("clientName").textContent =
+    query.nombre && query.nombre !== "undefined" ? query.nombre : "No informado";
 document.getElementById("clientLastLogin").textContent = query.fecha_ultimo_ingreso || "";
 
 

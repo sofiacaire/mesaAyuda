@@ -250,10 +250,10 @@ formE1.addEventListener('submit', (event) => {
 					'&mode=' + MODE
 				);
 				const params = new URLSearchParams({
-					id: users.id,
-					contacto: users.contacto,
-					nombre: users.nombre,
-					fecha_ultimo_ingreso: users.fecha_ultimo_ingreso,
+					id: users.id || '',
+					contacto: users.contacto || '',
+					nombre: users.nombre || '',
+					fecha_ultimo_ingreso: users.fecha_ultimo_ingreso || '',
 					mode: MODE,
 				});
 				window.location.href = systemURL.listarTicket + '?' + params.toString();

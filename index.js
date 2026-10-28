@@ -238,7 +238,7 @@ app.post('/api/getCliente/:id', (req, res) => {
   /api/loginCliente
   Esta API permite acceder a un cliente por contacto y comparar la password pasada en un JSON en el cuerpo con la indicada en el DB
 */
-app.post('/api/loginCliente', (req, res) => {
+app.post('/api/loginCliente', async (req, res) => {
 
     const contacto = typeof req.body.contacto === "string" ? req.body.contacto.trim() : "";
     const { password } = req.body;
@@ -254,41 +254,32 @@ app.post('/api/loginCliente', (req, res) => {
         return;
     }
 
-    scanDb(contacto)
-        .then(async clientes => {
-            if (clientes.length === 0) {
-                res.status(401).send({ response: "invalido" });
-                return;
-            }
+    try {
+        const clientes = await scanDb(contacto);
+        const cliente = clientes.find(item => item.password === password);
+        if (!cliente || cliente.activo !== true) {
+            res.status(401).send({ response: "invalido" });
+            return;
+        }
 
-            const cliente = clientes[0];
-            const paswd = jsonParser('password', cliente);
-            const activo = jsonParser('activo', cliente);
-            if (password !== paswd) {
-                res.status(401).send({ response: "invalido" });
-                return;
-            }
-            if (activo !== true) {
-                res.status(401).send({ response: "invalido" });
-                return;
-            }
+        const clienteAntiguo = clientes.find(
+            item => item.id === contacto || item.migratingTo
+        );
+        const clienteAutenticado = clienteAntiguo
+            ? await migrarIdClienteAntiguo(clienteAntiguo)
+            : cliente;
 
-            const id = jsonParser('id', cliente);
-            const nombre = jsonParser('nombre', cliente);
-            const contactoCliente = jsonParser('contacto', cliente);
-            const fecha_ultimo_ingreso = jsonParser('fecha_ultimo_ingreso', cliente);
-            res.status(200).send({
-                response: "OK",
-                id,
-                nombre,
-                contacto: contactoCliente,
-                fecha_ultimo_ingreso
-            });
-        })
-        .catch(error => {
-            console.error("loginCliente: error al consultar cliente", error);
-            res.status(500).send({ response: "ERROR", message: "Error al consultar el cliente" });
+        res.status(200).send({
+            response: "OK",
+            id: clienteAutenticado.id,
+            nombre: clienteAutenticado.nombre,
+            contacto: clienteAutenticado.contacto,
+            fecha_ultimo_ingreso: clienteAutenticado.fecha_ultimo_ingreso
         });
+    } catch (error) {
+        console.error("loginCliente: error al consultar o migrar cliente", error);
+        res.status(500).send({ response: "ERROR", message: "Error al consultar el cliente" });
+    }
 
 });
 
@@ -309,16 +300,26 @@ app.post('/api/checkCliente', async (req, res) => {
 });
 
 app.post('/api/registrarCliente', async (req, res) => {
+    const nombre = typeof req.body.nombre === "string" ? req.body.nombre.trim() : "";
     const contacto = typeof req.body.contacto === "string" ? req.body.contacto.trim() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
+    const confirmPassword = typeof req.body.confirmPassword === "string" ? req.body.confirmPassword : "";
     const termsAccepted = req.body.termscondition === true;
 
+    if (!nombre) {
+        res.status(400).send({ response: "ERROR", message: "Nombre no informado" });
+        return;
+    }
     if (!contacto || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contacto)) {
         res.status(400).send({ response: "ERROR", message: "Correo electrónico inválido" });
         return;
     }
     if (!password) {
         res.status(400).send({ response: "ERROR", message: "Password no informada" });
+        return;
+    }
+    if (password !== confirmPassword) {
+        res.status(400).send({ response: "ERROR", message: "Las contraseñas no coinciden" });
         return;
     }
     if (!termsAccepted) {
@@ -335,7 +336,8 @@ app.post('/api/registrarCliente', async (req, res) => {
 
         const hoy = fechaActual();
         const nuevoCliente = {
-            id: contacto,
+            id: crypto.randomUUID(),
+            nombre,
             contacto,
             password,
             activo: true,
@@ -387,6 +389,136 @@ async function scanDb(contacto) {
     return items;
 }
 
+async function migrarIdClienteAntiguo(clienteAntiguo) {
+    let response;
+    try {
+        response = await docClient.update({
+            TableName: "cliente",
+            Key: { id: clienteAntiguo.id },
+            UpdateExpression: "SET #migratingTo = if_not_exists(#migratingTo, :newId)",
+            ConditionExpression: "attribute_exists(id)",
+            ExpressionAttributeNames: { "#migratingTo": "migratingTo" },
+            ExpressionAttributeValues: { ":newId": crypto.randomUUID() },
+            ReturnValues: "ALL_NEW"
+        }).promise();
+    } catch (error) {
+        if (error.code !== "ConditionalCheckFailedException") {
+            throw error;
+        }
+        const clientesActuales = await scanDb(clienteAntiguo.contacto);
+        const clienteMigrado = clientesActuales.find(
+            item => item.id !== clienteAntiguo.id && item.contacto === clienteAntiguo.contacto
+        );
+        if (clienteMigrado) {
+            return clienteMigrado;
+        }
+        throw error;
+    }
+
+    const cliente = response.Attributes;
+    const nuevoId = cliente.migratingTo;
+    let lastEvaluatedKey;
+    do {
+        const data = await docClient.scan({
+            TableName: "ticket",
+            FilterExpression: "#clienteID = :oldId",
+            ExpressionAttributeNames: { "#clienteID": "clienteID" },
+            ExpressionAttributeValues: { ":oldId": cliente.id },
+            ...(lastEvaluatedKey ? { ExclusiveStartKey: lastEvaluatedKey } : {})
+        }).promise();
+
+        for (const ticket of data.Items || []) {
+            if (!ticket.id) {
+                throw new Error("No se puede migrar un ticket sin ID");
+            }
+            try {
+                await docClient.update({
+                    TableName: "ticket",
+                    Key: { id: ticket.id },
+                    UpdateExpression: "SET #clienteID = :newId",
+                    ConditionExpression: "#clienteID = :oldId",
+                    ExpressionAttributeNames: { "#clienteID": "clienteID" },
+                    ExpressionAttributeValues: { ":oldId": cliente.id, ":newId": nuevoId }
+                }).promise();
+            } catch (error) {
+                if (error.code !== "ConditionalCheckFailedException") {
+                    throw error;
+                }
+                const actual = await docClient.get({
+                    TableName: "ticket",
+                    Key: { id: ticket.id }
+                }).promise();
+                if (!actual.Item || actual.Item.clienteID !== nuevoId) {
+                    throw error;
+                }
+            }
+        }
+        lastEvaluatedKey = data.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    let clienteMigrado;
+    const existente = await docClient.get({
+        TableName: "cliente",
+        Key: { id: nuevoId }
+    }).promise();
+    if (existente.Item) {
+        if (existente.Item.contacto !== cliente.contacto) {
+            throw new Error("El ID generado ya pertenece a otro cliente");
+        }
+        clienteMigrado = existente.Item;
+    } else {
+        clienteMigrado = { ...cliente, id: nuevoId };
+        delete clienteMigrado.migratingTo;
+        try {
+            await docClient.put({
+                TableName: "cliente",
+                Item: clienteMigrado,
+                ConditionExpression: "attribute_not_exists(id)"
+            }).promise();
+        } catch (error) {
+            if (error.code !== "ConditionalCheckFailedException") {
+                throw error;
+            }
+            const actual = await docClient.get({
+                TableName: "cliente",
+                Key: { id: nuevoId }
+            }).promise();
+            if (!actual.Item || actual.Item.contacto !== cliente.contacto) {
+                throw error;
+            }
+            clienteMigrado = actual.Item;
+        }
+    }
+
+    try {
+        await docClient.delete({
+            TableName: "cliente",
+            Key: { id: cliente.id },
+            ConditionExpression: "#migratingTo = :newId",
+            ExpressionAttributeNames: { "#migratingTo": "migratingTo" },
+            ExpressionAttributeValues: { ":newId": nuevoId }
+        }).promise();
+    } catch (error) {
+        if (error.code !== "ConditionalCheckFailedException") {
+            throw error;
+        }
+        const viejo = await docClient.get({
+            TableName: "cliente",
+            Key: { id: cliente.id }
+        }).promise();
+        const nuevo = await docClient.get({
+            TableName: "cliente",
+            Key: { id: nuevoId }
+        }).promise();
+        if (viejo.Item || !nuevo.Item || nuevo.Item.contacto !== cliente.contacto) {
+            throw error;
+        }
+        clienteMigrado = nuevo.Item;
+    }
+
+    return clienteMigrado;
+}
+
 /*----
 addCliente
 Revisa si el contacto (e-mail) existe y en caso que no da de alta el cliente generando un id al azar
@@ -425,8 +557,9 @@ app.post('/api/addCliente', (req, res) => {
                 hoy = dd + '/' + mm + '/' + yyyy;
 
                 const newCliente = {
-                    id: contacto,
+                    id: crypto.randomUUID(),
                     nombre: nombre,
+                    contacto: contacto,
                     password: password,
                     activo: true,
                     registrado: true,
