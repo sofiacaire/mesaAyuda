@@ -269,12 +269,25 @@ app.post('/api/loginCliente', async (req, res) => {
             ? await migrarIdClienteAntiguo(clienteAntiguo)
             : cliente;
 
+        const fechaIngreso = fechaActual();
+        await docClient.update({
+            TableName: "cliente",
+            Key: { id: clienteAutenticado.id },
+            ExpressionAttributeNames: {
+                "#f": "fecha_ultimo_ingreso"
+            },
+            ExpressionAttributeValues: {
+                ":f": fechaIngreso
+            },
+            UpdateExpression: "SET #f = :f"
+        }).promise();
+
         res.status(200).send({
             response: "OK",
             id: clienteAutenticado.id,
             nombre: clienteAutenticado.nombre,
             contacto: clienteAutenticado.contacto,
-            fecha_ultimo_ingreso: clienteAutenticado.fecha_ultimo_ingreso
+            fecha_ultimo_ingreso: fechaIngreso
         });
     } catch (error) {
         console.error("loginCliente: error al consultar o migrar cliente", error);
@@ -681,8 +694,8 @@ app.post('/api/resetCliente', async (req, res) => {
     const password = typeof req.body.password === "string" ? req.body.password : "";
     const confirmPassword = req.body.confirmPassword;
 
-    if (!id && !contacto) {
-        res.status(400).send({ response: "ERROR", message: "Debe informar el id o correo electrónico del cliente" });
+    if (!contacto) {
+        res.status(400).send({ response: "ERROR", message: "Debe informar el correo" });
         return;
     }
     if (!password) {
